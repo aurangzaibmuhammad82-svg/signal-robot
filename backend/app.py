@@ -1,190 +1,141 @@
-"""
-Multi-Asset Signal Robot — Backend API
-"""
+<!doctype html>
+<html lang="ur">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Multi-Asset Signal Robot</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b1020;color:#eef2ff;font-family:Arial,sans-serif}
+.wrap{max-width:900px;margin:auto;padding:14px}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:#9eabc7;font-size:13px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:1fr;gap:12px}
+.card{background:#121a2d;border:1px solid #263452;border-radius:16px;padding:14px}
+.symbol{font-size:15px;font-weight:800;color:#cdd9f5}
+.label{font-size:11px;color:#9eabc7;margin-bottom:6px}
+.price{font-size:24px;font-weight:800;margin:6px 0}
+.badge{display:inline-block;padding:6px 12px;border-radius:10px;font-weight:800;font-size:13px}
+.wait{background:#4a3b12;color:#ffd86b}
+.buy{background:#103e2b;color:#63e6a4}
+.sell{background:#4a1820;color:#ff8996}
+.error{background:#2a2a2a;color:#aaa}
+.meta{font-size:11px;color:#7c8bab;margin-top:8px}
+.chart{height:180px;overflow:hidden;border-radius:10px;margin-top:10px;background:#0d1425}
+.chart iframe{width:100%;height:100%;border:0}
+button{width:100%;border:0;border-radius:12px;padding:13px;background:#1e2b47;color:white;font-size:15px;font-weight:700;margin-top:14px}
+.note{font-size:12px;line-height:1.5;color:#9eabc7;margin-top:14px;background:#121a2d;border:1px solid #263452;border-radius:16px;padding:14px}
+.cfg{font-size:11px;color:#7c8bab;margin-bottom:10px}
+.cfg input{background:#0d1425;border:1px solid #263452;color:#eef2ff;border-radius:8px;padding:6px 8px;width:100%;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🤖 Multi-Asset Signal Robot</h1>
+  <div class="sub">Gold • Silver • BTC • SOL — 5 Minute Chart — Live</div>
 
-import os
-import time
-import requests
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+  <div class="cfg">
+    Backend API URL:
+    <input id="apiUrl" placeholder="https://your-backend.onrender.com" />
+  </div>
 
-TWELVEDATA_API_KEY = os.environ.get("TWELVEDATA_API_KEY", "")
+  <div class="grid" id="grid">
+    <div class="card"><div class="label">GOLD (XAU/USD)</div><div class="price">Loading...</div></div>
+    <div class="card"><div class="label">SILVER (XAG/USD)</div><div class="price">Loading...</div></div>
+    <div class="card"><div class="label">BTC/USDT</div><div class="price">Loading...</div></div>
+    <div class="card"><div class="label">SOL/USDT</div><div class="price">Loading...</div></div>
+  </div>
 
-app = FastAPI(title="Multi-Asset Signal Robot")
+  <button onclick="loadSignals()">🔄 Refresh Now</button>
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+  <div class="note">
+    <b>اہم:</b> یہ signals ایک simple EMA9/EMA21 crossover + RSI filter پر مبنی ہیں (reference/analysis کے لیے)۔
+    یہ خود کسی broker پر trade نہیں لگاتا۔ ہمیشہ اپنی risk management کے ساتھ manually confirm کر کے trade کریں۔
+  </div>
+</div>
 
-SYMBOLS = {
-    "GOLD": {"type": "twelvedata", "td_symbol": "XAU/USD", "label": "XAU/USD"},
-    "SILVER": {"type": "twelvedata", "td_symbol": "XAG/USD", "label": "XAG/USD"},
-    "BTC": {"type": "coinbase", "cb_symbol": "BTC", "label": "BTC/USDT"},
-    "SOL": {"type": "coinbase", "cb_symbol": "SOL", "label": "SOL/USDT"},
+<script>
+const ORDER = ["GOLD", "SILVER", "BTC", "SOL"];
+const TV_SYMBOLS = {
+  GOLD: "OANDA:XAUUSD",
+  SILVER: "OANDA:XAGUSD",
+  BTC: "BINANCE:BTCUSDT",
+  SOL: "BINANCE:SOLUSDT",
+};
+
+function getApiBase() {
+  const saved = localStorage.getItem('signalRobotApiUrl');
+  const input = document.getElementById('apiUrl');
+  if (saved && !input.value) input.value = saved;
+  return (input.value || saved || '').replace(/\/$/, '');
 }
 
-_cache = {}
-CACHE_SECONDS = 25
+document.getElementById('apiUrl').addEventListener('change', (e) => {
+  localStorage.setItem('signalRobotApiUrl', e.target.value.trim());
+  loadSignals();
+});
 
+function badgeClass(signal) {
+  if (signal === 'BUY') return 'buy';
+  if (signal === 'SELL') return 'sell';
+  if (signal === 'ERROR') return 'error';
+  return 'wait';
+}
 
-def ema(values, period):
-    k = 2 / (period + 1)
-    ema_vals = [values[0]]
-    for v in values[1:]:
-        ema_vals.append(v * k + ema_vals[-1] * (1 - k))
-    return ema_vals
+async function loadSignals() {
+  const base = getApiBase();
+  const grid = document.getElementById('grid');
+  if (!base) {
+    grid.innerHTML = '<div class="card"><div class="label">SETUP NEEDED</div><div class="sub">Upar apna backend API URL daalein</div></div>';
+    return;
+  }
+  const chartsBuilt = grid.dataset.built === 'true';
+  if (!chartsBuilt) {
+    grid.innerHTML = '';
+    ORDER.forEach((key) => {
+      const tvSymbol = TV_SYMBOLS[key];
+      grid.insertAdjacentHTML('beforeend', `
+        <div class="card">
+          <div class="symbol">${key}</div>
+          <div class="price" id="price-${key}">Loading...</div>
+          <span class="badge wait" id="badge-${key}">...</span>
+          <div class="meta" id="meta-${key}"></div>
+          <div class="chart">
+            <iframe
+              src="https://www.tradingview.com/widgetembed/?frameElementId=tv_${key}&symbol=${encodeURIComponent(tvSymbol)}&interval=5&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=0b1020&studies=%5B%5D&theme=dark&style=1&timezone=Etc%2FUTC&hidelegend=0&hidevolume=1"
+              allowtransparency="true" scrolling="no" allowfullscreen>
+            </iframe>
+          </div>
+        </div>
+      `);
+    });
+    grid.dataset.built = 'true';
+  }
 
+  try {
+    const r = await fetch(base + '/api/signals', { cache: 'no-store' });
+    const json = await r.json();
+    ORDER.forEach((key) => {
+      const d = json.data[key];
+      const priceText = d.price !== null ? '$' + d.price.toLocaleString(undefined, {maximumFractionDigits: 4}) : '--';
+      const rsiText = d.rsi !== null ? 'RSI ' + d.rsi : '';
+      const priceEl = document.getElementById('price-' + key);
+      const badgeEl = document.getElementById('badge-' + key);
+      const metaEl = document.getElementById('meta-' + key);
+      if (priceEl) priceEl.textContent = priceText;
+      if (badgeEl) {
+        badgeEl.textContent = d.signal;
+        badgeEl.className = 'badge ' + badgeClass(d.signal);
+      }
+      if (metaEl) metaEl.textContent = `${rsiText} • ${d.status}`;
+    });
+  } catch (e) {
+    grid.innerHTML = '<div class="card"><div class="label">CONNECTION ERROR</div><div class="sub">Backend URL check karein</div></div>';
+  }
+}
 
-def rsi(values, period=14):
-    if len(values) < period + 1:
-        return [50.0] * len(values)
-    gains, losses = [0.0], [0.0]
-    for i in range(1, len(values)):
-        change = values[i] - values[i - 1]
-        gains.append(max(change, 0.0))
-        losses.append(max(-change, 0.0))
-    avg_gain = sum(gains[1:period + 1]) / period
-    avg_loss = sum(losses[1:period + 1]) / period
-    rsis = [50.0] * (period + 1)
-    for i in range(period + 1, len(values)):
-        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
-        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
-        rs = avg_gain / avg_loss if avg_loss != 0 else 100
-        rsis.append(100 - (100 / (1 + rs)))
-    while len(rsis) < len(values):
-        rsis.append(rsis[-1])
-    return rsis
-
-
-def fetch_binance_closes(symbol, interval="5m", limit=100):
-    url = "https://api.binance.com/api/v3/klines"
-    params = {"symbol": symbol, "interval": interval, "limit": limit}
-    r = requests.get(url, params=params, timeout=10)
-    r.raise_for_status()
-    data = r.json()
-    closes = [float(c[4]) for c in data]
-    last_price = closes[-1]
-    return closes, last_price
-
-
-def fetch_coinbase_closes(symbol, limit=100):
-    url = f"https://api.exchange.coinbase.com/products/{symbol}-USD/candles"
-    params = {"granularity": 300}
-    headers = {"User-Agent": "signal-robot/1.0"}
-    r = requests.get(url, params=params, headers=headers, timeout=10)
-    r.raise_for_status()
-    data = r.json()
-    if not data:
-        raise RuntimeError("Coinbase returned no data")
-    data = sorted(data, key=lambda c: c[0])
-    closes = [float(c[4]) for c in data][-limit:]
-    last_price = closes[-1]
-    return closes, last_price
-
-
-def fetch_twelvedata_closes(td_symbol, interval="5min", outputsize=100):
-    if not TWELVEDATA_API_KEY:
-        raise RuntimeError("TWELVEDATA_API_KEY not set")
-    url = "https://api.twelvedata.com/time_series"
-    params = {
-        "symbol": td_symbol,
-        "interval": interval,
-        "outputsize": outputsize,
-        "apikey": TWELVEDATA_API_KEY,
-        "order": "ASC",
-    }
-    r = requests.get(url, params=params, timeout=10)
-    r.raise_for_status()
-    data = r.json()
-    if "values" not in data:
-        raise RuntimeError(data.get("message", "TwelveData error"))
-    closes = [float(v["close"]) for v in data["values"]]
-    last_price = closes[-1]
-    return closes, last_price
-
-
-def compute_signal(closes):
-    if len(closes) < 25:
-        return "WAIT", 0.0, 0.0
-
-    ema9 = ema(closes, 9)
-    ema21 = ema(closes, 21)
-    rsi14 = rsi(closes, 14)
-
-    prev_diff = ema9[-2] - ema21[-2]
-    curr_diff = ema9[-1] - ema21[-1]
-    curr_rsi = rsi14[-1]
-
-    crossed_up = prev_diff <= 0 and curr_diff > 0
-    crossed_down = prev_diff >= 0 and curr_diff < 0
-    trending_up = curr_diff > 0
-    trending_down = curr_diff < 0
-
-    signal = "WAIT"
-    if (crossed_up or trending_up) and 40 <= curr_rsi <= 70:
-        signal = "BUY"
-    elif (crossed_down or trending_down) and 30 <= curr_rsi <= 60:
-        signal = "SELL"
-
-    return signal, curr_rsi, curr_diff
-
-
-def get_symbol_data(key, cfg):
-    now = time.time()
-    cached = _cache.get(key)
-    if cached and now - cached["ts"] < CACHE_SECONDS:
-        return cached["data"]
-
-    try:
-        if cfg["type"] == "binance":
-            closes, price = fetch_binance_closes(cfg["binance_symbol"])
-        elif cfg["type"] == "coinbase":
-            closes, price = fetch_coinbase_closes(cfg["cb_symbol"])
-        else:
-            closes, price = fetch_twelvedata_closes(cfg["td_symbol"])
-
-        signal, curr_rsi, diff = compute_signal(closes)
-        result = {
-            "symbol": key,
-            "label": cfg["label"],
-            "price": round(price, 4),
-            "signal": signal,
-            "rsi": round(curr_rsi, 1),
-            "status": "LIVE",
-            "updated": int(now),
-        }
-    except Exception as e:
-        result = {
-            "symbol": key,
-            "label": cfg["label"],
-            "price": None,
-            "signal": "ERROR",
-            "rsi": None,
-            "status": f"OFFLINE ({e})",
-            "updated": int(now),
-        }
-
-    _cache[key] = {"ts": now, "data": result}
-    return result
-
-
-@app.get("/api/signals")
-def get_signals():
-    results = {key: get_symbol_data(key, cfg) for key, cfg in SYMBOLS.items()}
-    return {"generated_at": int(time.time()), "data": results}
-
-
-@app.get("/api/signals/{symbol}")
-def get_signal_one(symbol: str):
-    symbol = symbol.upper()
-    if symbol not in SYMBOLS:
-        return {"error": f"Unknown symbol '{symbol}'. Valid: {list(SYMBOLS.keys())}"}
-    return get_symbol_data(symbol, SYMBOLS[symbol])
-
-
-@app.get("/")
-def root():
-    return {"status": "ok", "message": "Multi-Asset Signal Robot API running"}
+loadSignals();
+setInterval(loadSignals, 30000);
+</script>
+</body>
+</html>
