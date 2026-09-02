@@ -10,28 +10,28 @@ body{margin:0;background:#0b1020;color:#eef2ff;font-family:Arial,sans-serif}
 .wrap{max-width:900px;margin:auto;padding:14px}
 h1{font-size:22px;margin:0 0 4px}
 .sub{color:#9eabc7;font-size:13px;margin-bottom:14px}
-.grid{display:grid;grid-template-columns:1fr;gap:12px}
-.card{background:#121a2d;border:1px solid #263452;border-radius:16px;padding:14px}
+.card{background:#121a2d;border:1px solid #263452;border-radius:16px;padding:14px;margin-bottom:12px}
+label{font-size:11px;color:#9eabc7;display:block;margin-bottom:6px}
+select{width:100%;background:#0d1425;border:1px solid #263452;color:#eef2ff;border-radius:10px;padding:12px;font-size:15px;margin-bottom:12px;-webkit-appearance:none;appearance:none}
 .symbol{font-size:15px;font-weight:800;color:#cdd9f5}
-.label{font-size:11px;color:#9eabc7;margin-bottom:6px}
-.price{font-size:24px;font-weight:800;margin:6px 0}
-.badge{display:inline-block;padding:6px 12px;border-radius:10px;font-weight:800;font-size:13px}
+.price{font-size:32px;font-weight:800;margin:8px 0}
+.badge{display:inline-block;padding:8px 16px;border-radius:10px;font-weight:800;font-size:15px}
 .wait{background:#4a3b12;color:#ffd86b}
 .buy{background:#103e2b;color:#63e6a4}
 .sell{background:#4a1820;color:#ff8996}
 .error{background:#2a2a2a;color:#aaa}
-.meta{font-size:11px;color:#7c8bab;margin-top:8px}
-.chart{height:180px;overflow:hidden;border-radius:10px;margin-top:10px;background:#0d1425}
+.meta{font-size:12px;color:#7c8bab;margin-top:8px}
+.chart{height:430px;overflow:hidden;border-radius:12px;margin-top:14px;background:#0d1425}
 .chart iframe{width:100%;height:100%;border:0}
-button{width:100%;border:0;border-radius:12px;padding:13px;background:#1e2b47;color:white;font-size:15px;font-weight:700;margin-top:14px}
-.note{font-size:12px;line-height:1.5;color:#9eabc7;margin-top:14px;background:#121a2d;border:1px solid #263452;border-radius:16px;padding:14px}
+button{width:100%;border:0;border-radius:12px;padding:14px;background:#1e2b47;color:white;font-size:15px;font-weight:700}
+.note{font-size:12px;line-height:1.5;color:#9eabc7;margin-top:12px;background:#121a2d;border:1px solid #263452;border-radius:16px;padding:14px}
 .cfg{font-size:11px;color:#7c8bab;margin-bottom:10px}
 .cfg input{background:#0d1425;border:1px solid #263452;color:#eef2ff;border-radius:8px;padding:6px 8px;width:100%;margin-top:4px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>🤖 Multi-Asset Signal Robot</h1>
+  <h1>🤖 Signal Robot</h1>
   <div class="sub">Gold • Silver • BTC • SOL — 5 Minute Chart — Live</div>
 
   <div class="cfg">
@@ -39,28 +39,41 @@ button{width:100%;border:0;border-radius:12px;padding:13px;background:#1e2b47;co
     <input id="apiUrl" placeholder="https://your-backend.onrender.com" />
   </div>
 
-  <div class="grid" id="grid">
-    <div class="card"><div class="label">GOLD (XAU/USD)</div><div class="price">Loading...</div></div>
-    <div class="card"><div class="label">SILVER (XAG/USD)</div><div class="price">Loading...</div></div>
-    <div class="card"><div class="label">BTC/USDT</div><div class="price">Loading...</div></div>
-    <div class="card"><div class="label">SOL/USDT</div><div class="price">Loading...</div></div>
+  <div class="card">
+    <label>Instrument select karein</label>
+    <select id="symbolSelect">
+      <option value="GOLD">Gold (XAU/USD)</option>
+      <option value="SILVER">Silver (XAG/USD)</option>
+      <option value="BTC">BTC/USDT</option>
+      <option value="SOL">SOL/USDT</option>
+    </select>
+    <button onclick="checkSignal()">🔍 Check Signal</button>
   </div>
 
-  <button onclick="loadSignals()">🔄 Refresh Now</button>
+  <div class="card" id="resultCard" style="display:none">
+    <div class="symbol" id="rSymbol">—</div>
+    <div class="price" id="rPrice">—</div>
+    <span class="badge wait" id="rBadge">...</span>
+    <div class="meta" id="rMeta"></div>
+    <div class="chart" id="rChart"></div>
+  </div>
 
   <div class="note">
-    <b>اہم:</b> یہ signals ایک simple EMA9/EMA21 crossover + RSI filter پر مبنی ہیں (reference/analysis کے لیے)۔
+    <b>اہم:</b> یہ signal ایک simple EMA9/EMA21 crossover + RSI filter پر مبنی ہے (reference/analysis کے لیے)۔
     یہ خود کسی broker پر trade نہیں لگاتا۔ ہمیشہ اپنی risk management کے ساتھ manually confirm کر کے trade کریں۔
+    ایسی کوئی گارنٹی نہیں کہ signal ہمیشہ درست ہو گا۔
   </div>
 </div>
 
 <script>
-const ORDER = ["GOLD", "SILVER", "BTC", "SOL"];
 const TV_SYMBOLS = {
   GOLD: "OANDA:XAUUSD",
   SILVER: "OANDA:XAGUSD",
   BTC: "BINANCE:BTCUSDT",
   SOL: "BINANCE:SOLUSDT",
+};
+const LABELS = {
+  GOLD: "XAU/USD", SILVER: "XAG/USD", BTC: "BTC/USDT", SOL: "SOL/USDT",
 };
 
 function getApiBase() {
@@ -72,7 +85,6 @@ function getApiBase() {
 
 document.getElementById('apiUrl').addEventListener('change', (e) => {
   localStorage.setItem('signalRobotApiUrl', e.target.value.trim());
-  loadSignals();
 });
 
 function badgeClass(signal) {
@@ -82,60 +94,49 @@ function badgeClass(signal) {
   return 'wait';
 }
 
-async function loadSignals() {
+let lastKey = null;
+
+async function checkSignal() {
   const base = getApiBase();
-  const grid = document.getElementById('grid');
+  const resultCard = document.getElementById('resultCard');
   if (!base) {
-    grid.innerHTML = '<div class="card"><div class="label">SETUP NEEDED</div><div class="sub">Upar apna backend API URL daalein</div></div>';
+    alert('Pehle upar Backend API URL daalein');
     return;
   }
-  const chartsBuilt = grid.dataset.built === 'true';
-  if (!chartsBuilt) {
-    grid.innerHTML = '';
-    ORDER.forEach((key) => {
-      const tvSymbol = TV_SYMBOLS[key];
-      grid.insertAdjacentHTML('beforeend', `
-        <div class="card">
-          <div class="symbol">${key}</div>
-          <div class="price" id="price-${key}">Loading...</div>
-          <span class="badge wait" id="badge-${key}">...</span>
-          <div class="meta" id="meta-${key}"></div>
-          <div class="chart">
-            <iframe
-              src="https://www.tradingview.com/widgetembed/?frameElementId=tv_${key}&symbol=${encodeURIComponent(tvSymbol)}&interval=5&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=0b1020&studies=%5B%5D&theme=dark&style=1&timezone=Etc%2FUTC&hidelegend=0&hidevolume=1"
-              allowtransparency="true" scrolling="no" allowfullscreen>
-            </iframe>
-          </div>
-        </div>
-      `);
-    });
-    grid.dataset.built = 'true';
+  const key = document.getElementById('symbolSelect').value;
+  resultCard.style.display = 'block';
+  document.getElementById('rSymbol').textContent = LABELS[key];
+  document.getElementById('rPrice').textContent = 'Loading...';
+  document.getElementById('rBadge').textContent = '...';
+  document.getElementById('rBadge').className = 'badge wait';
+  document.getElementById('rMeta').textContent = '';
+
+  if (lastKey !== key) {
+    const tvSymbol = TV_SYMBOLS[key];
+    document.getElementById('rChart').innerHTML = `
+      <iframe
+        src="https://www.tradingview.com/widgetembed/?frameElementId=tv_${key}&symbol=${encodeURIComponent(tvSymbol)}&interval=5&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=0b1020&studies=%5B%5D&theme=dark&style=1&timezone=Etc%2FUTC&hidelegend=0&hidevolume=1"
+        allowtransparency="true" scrolling="no" allowfullscreen>
+      </iframe>`;
+    lastKey = key;
   }
 
   try {
-    const r = await fetch(base + '/api/signals', { cache: 'no-store' });
-    const json = await r.json();
-    ORDER.forEach((key) => {
-      const d = json.data[key];
-      const priceText = d.price !== null ? '$' + d.price.toLocaleString(undefined, {maximumFractionDigits: 4}) : '--';
-      const rsiText = d.rsi !== null ? 'RSI ' + d.rsi : '';
-      const priceEl = document.getElementById('price-' + key);
-      const badgeEl = document.getElementById('badge-' + key);
-      const metaEl = document.getElementById('meta-' + key);
-      if (priceEl) priceEl.textContent = priceText;
-      if (badgeEl) {
-        badgeEl.textContent = d.signal;
-        badgeEl.className = 'badge ' + badgeClass(d.signal);
-      }
-      if (metaEl) metaEl.textContent = `${rsiText} • ${d.status}`;
-    });
+    const r = await fetch(base + '/api/signals/' + key, { cache: 'no-store' });
+    const d = await r.json();
+    const priceText = d.price !== null && d.price !== undefined ? '$' + Number(d.price).toLocaleString(undefined, {maximumFractionDigits: 4}) : '--';
+    const rsiText = d.rsi !== null && d.rsi !== undefined ? 'RSI ' + d.rsi : '';
+    document.getElementById('rPrice').textContent = priceText;
+    document.getElementById('rBadge').textContent = d.signal;
+    document.getElementById('rBadge').className = 'badge ' + badgeClass(d.signal);
+    document.getElementById('rMeta').textContent = `${rsiText} • ${d.status}`;
   } catch (e) {
-    grid.innerHTML = '<div class="card"><div class="label">CONNECTION ERROR</div><div class="sub">Backend URL check karein</div></div>';
+    document.getElementById('rPrice').textContent = '--';
+    document.getElementById('rBadge').textContent = 'ERROR';
+    document.getElementById('rBadge').className = 'badge error';
+    document.getElementById('rMeta').textContent = 'Backend se connect nahi ho saka';
   }
 }
-
-loadSignals();
-setInterval(loadSignals, 30000);
 </script>
 </body>
 </html>
