@@ -22,8 +22,8 @@ app.add_middleware(
 SYMBOLS = {
     "GOLD": {"type": "twelvedata", "td_symbol": "XAU/USD", "label": "XAU/USD"},
     "SILVER": {"type": "twelvedata", "td_symbol": "XAG/USD", "label": "XAG/USD"},
-    "BTC": {"type": "binance", "binance_symbol": "BTCUSDT", "label": "BTC/USDT"},
-    "SOL": {"type": "binance", "binance_symbol": "SOLUSDT", "label": "SOL/USDT"},
+    "BTC": {"type": "cryptocompare", "cc_symbol": "BTC", "label": "BTC/USDT"},
+    "SOL": {"type": "cryptocompare", "cc_symbol": "SOL", "label": "SOL/USDT"},
 }
 
 _cache = {}
@@ -66,6 +66,20 @@ def fetch_binance_closes(symbol, interval="5m", limit=100):
     r.raise_for_status()
     data = r.json()
     closes = [float(c[4]) for c in data]
+    last_price = closes[-1]
+    return closes, last_price
+
+
+def fetch_cryptocompare_closes(symbol, limit=100):
+    url = "https://min-api.cryptocompare.com/data/v2/histominute"
+    params = {"fsym": symbol, "tsym": "USD", "limit": limit, "aggregate": 5}
+    r = requests.get(url, params=params, timeout=10)
+    r.raise_for_status()
+    data = r.json()
+    if data.get("Response") != "Success":
+        raise RuntimeError(data.get("Message", "CryptoCompare error"))
+    candles = data["Data"]["Data"]
+    closes = [float(c["close"]) for c in candles if c["close"] > 0]
     last_price = closes[-1]
     return closes, last_price
 
@@ -126,6 +140,8 @@ def get_symbol_data(key, cfg):
     try:
         if cfg["type"] == "binance":
             closes, price = fetch_binance_closes(cfg["binance_symbol"])
+        elif cfg["type"] == "cryptocompare":
+            closes, price = fetch_cryptocompare_closes(cfg["cc_symbol"])
         else:
             closes, price = fetch_twelvedata_closes(cfg["td_symbol"])
 
