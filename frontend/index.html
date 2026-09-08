@@ -6,59 +6,90 @@
 <title>Multi-Asset Signal Robot</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#0b1020;color:#eef2ff;font-family:Arial,sans-serif}
+:root{
+  --bg:#0b1020; --fg:#eef2ff; --card:#121a2d; --border:#263452;
+  --muted:#9eabc7; --input:#0d1425;
+}
+body.light{
+  --bg:#f2f4f9; --fg:#101625; --card:#ffffff; --border:#dbe1ee;
+  --muted:#5b667e; --input:#eef1f8;
+}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:Arial,sans-serif;transition:background 0.2s,color 0.2s}
 .wrap{max-width:900px;margin:auto;padding:14px}
 h1{font-size:22px;margin:0 0 4px}
-.sub{color:#9eabc7;font-size:13px;margin-bottom:14px}
-.card{background:#121a2d;border:1px solid #263452;border-radius:16px;padding:14px;margin-bottom:12px}
-label{font-size:11px;color:#9eabc7;display:block;margin-bottom:6px}
-select{width:100%;background:#0d1425;border:1px solid #263452;color:#eef2ff;border-radius:10px;padding:12px;font-size:15px;margin-bottom:12px;-webkit-appearance:none;appearance:none}
-.symbol{font-size:15px;font-weight:800;color:#cdd9f5}
+.sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+.topbar{display:flex;gap:8px;margin-bottom:12px}
+.topbar button{width:auto;flex:1;padding:10px;font-size:13px;background:var(--card);border:1px solid var(--border);color:var(--fg)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:12px}
+label{font-size:11px;color:var(--muted);display:block;margin-bottom:6px}
+select,input[type=number]{width:100%;background:var(--input);border:1px solid var(--border);color:var(--fg);border-radius:10px;padding:12px;font-size:15px;margin-bottom:12px;-webkit-appearance:none;appearance:none}
+.symbol{font-size:15px;font-weight:800;color:var(--fg)}
 .price{font-size:32px;font-weight:800;margin:8px 0}
 .badge{display:inline-block;padding:8px 16px;border-radius:10px;font-weight:800;font-size:15px}
 .wait{background:#4a3b12;color:#ffd86b}
 .buy{background:#103e2b;color:#63e6a4}
 .sell{background:#4a1820;color:#ff8996}
 .error{background:#2a2a2a;color:#aaa}
-.meta{font-size:12px;color:#7c8bab;margin-top:8px}
-.chart{height:430px;overflow:hidden;border-radius:12px;margin-top:14px;background:#0d1425}
+.meta{font-size:12px;color:var(--muted);margin-top:8px}
+.chart{height:430px;overflow:hidden;border-radius:12px;margin-top:14px;background:var(--input)}
 .chart iframe{width:100%;height:100%;border:0}
 button{width:100%;border:0;border-radius:12px;padding:14px;background:#1e2b47;color:white;font-size:15px;font-weight:700}
-.note{font-size:12px;line-height:1.5;color:#9eabc7;margin-top:12px;background:#121a2d;border:1px solid #263452;border-radius:16px;padding:14px}
-.cfg{font-size:11px;color:#7c8bab;margin-bottom:10px}
-.cfg input{background:#0d1425;border:1px solid #263452;color:#eef2ff;border-radius:8px;padding:6px 8px;width:100%;margin-top:4px}
+body.light button{background:#2f4f8a}
+.note{font-size:12px;line-height:1.5;color:var(--muted);margin-top:12px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px}
+.cfg{font-size:11px;color:var(--muted);margin-bottom:10px}
+.cfg input{background:var(--input);border:1px solid var(--border);color:var(--fg);border-radius:8px;padding:6px 8px;width:100%;margin-top:4px}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid #556080;border-top-color:#63e6a4;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:6px;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
-.autorow{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#9eabc7;margin-top:10px}
+.autorow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:12px;color:var(--muted);margin-top:10px}
 .autorow label{display:flex;align-items:center;gap:6px;margin:0}
-.hist{margin-top:14px;border-top:1px solid #263452;padding-top:10px}
-.hist-row{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;color:#9eabc7;border-bottom:1px solid #1a2337}
+.hist{margin-top:14px;border-top:1px solid var(--border);padding-top:10px}
+.hist-row{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;color:var(--muted);border-bottom:1px solid var(--border)}
 .hist-row:last-child{border-bottom:none}
 .hist-badge{font-weight:800;padding:2px 8px;border-radius:6px;font-size:11px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.stat{background:var(--input);border-radius:10px;padding:10px}
+.stat .k{font-size:10px;color:var(--muted);text-transform:uppercase}
+.stat .v{font-size:15px;font-weight:700;margin-top:2px}
+.confwrap{margin-top:10px}
+.confbar{height:8px;background:var(--input);border-radius:6px;overflow:hidden;margin-top:6px}
+.confbar-fill{height:100%;background:linear-gradient(90deg,#ffd86b,#63e6a4)}
+.htf-yes{color:#63e6a4}
+.htf-no{color:#7c8bab}
+.watch{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.watch-item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px;text-align:center;font-size:11px}
+.watch-item .wprice{font-size:13px;font-weight:700;margin-top:2px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>🤖 Signal Robot</h1>
-  <div class="sub">Gold • Silver • BTC • SOL — 5 Minute Chart — Live</div>
+  <div class="topbar">
+    <button onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
+    <button onclick="toggleLang()" id="langBtn">EN</button>
+    <button onclick="enableNotifications()" id="notifBtn">🔔 Notify</button>
+  </div>
+
+  <h1 id="titleText">🤖 Signal Robot</h1>
+  <div class="sub" id="subText">Gold • Silver • BTC • SOL — 5 Minute Chart — Live</div>
 
   <div class="cfg">
-    Backend API URL:
+    <span id="apiLabel">Backend API URL:</span>
     <input id="apiUrl" placeholder="https://your-backend.onrender.com" />
   </div>
 
+  <div class="watch" id="watchGrid"></div>
+
   <div class="card">
-    <label>Instrument select karein</label>
+    <label id="selectLabel">Instrument select karein</label>
     <select id="symbolSelect">
       <option value="GOLD">Gold (XAU/USD)</option>
       <option value="SILVER">Silver (XAG/USD)</option>
       <option value="BTC">BTC/USDT</option>
       <option value="SOL">SOL/USDT</option>
     </select>
-    <button onclick="checkSignal()">🔍 Check Signal</button>
+    <button onclick="checkSignal()" id="checkBtn">🔍 Check Signal</button>
     <div class="autorow">
-      <label><input type="checkbox" id="autoRefresh" checked /> Auto-refresh (30s)</label>
-      <label><input type="checkbox" id="soundAlert" checked /> 🔔 Alert on change</label>
+      <label><input type="checkbox" id="autoRefresh" checked /> <span id="autoLabel">Auto-refresh (30s)</span></label>
+      <label><input type="checkbox" id="soundAlert" checked /> <span id="alertLabel">🔔 Alert on change</span></label>
     </div>
   </div>
 
@@ -67,27 +98,105 @@ button{width:100%;border:0;border-radius:12px;padding:14px;background:#1e2b47;co
     <div class="price" id="rPrice">—</div>
     <span class="badge wait" id="rBadge">...</span>
     <div class="meta" id="rMeta"></div>
+
+    <div class="confwrap">
+      <div class="meta" id="confLabel">Confidence</div>
+      <div class="confbar"><div class="confbar-fill" id="confFill" style="width:0%"></div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="stat"><div class="k" id="lblSupport">Support</div><div class="v" id="rSupport">—</div></div>
+      <div class="stat"><div class="k" id="lblResistance">Resistance</div><div class="v" id="rResistance">—</div></div>
+      <div class="stat"><div class="k" id="lblSl">Stop Loss</div><div class="v" id="rSl">—</div></div>
+      <div class="stat"><div class="k" id="lblTp">Take Profit</div><div class="v" id="rTp">—</div></div>
+    </div>
+    <div class="meta" id="rHtf"></div>
+
     <div class="chart" id="rChart"></div>
     <div class="hist" id="rHist"></div>
   </div>
 
-  <div class="note">
+  <div class="card" id="calcCard">
+    <label id="calcTitle">Position Size Calculator</label>
+    <input type="number" id="calcBalance" placeholder="Account balance ($)" value="100" />
+    <input type="number" id="calcRisk" placeholder="Risk % per trade" value="2" />
+    <button onclick="calcPosition()" id="calcBtn">🧮 Calculate</button>
+    <div class="meta" id="calcResult"></div>
+  </div>
+
+  <div class="note" id="disclaimer">
     <b>اہم:</b> یہ signal ایک simple EMA9/EMA21 crossover + RSI filter پر مبنی ہے (reference/analysis کے لیے)۔
     یہ خود کسی broker پر trade نہیں لگاتا۔ ہمیشہ اپنی risk management کے ساتھ manually confirm کر کے trade کریں۔
-    ایسی کوئی گارنٹی نہیں کہ signal ہمیشہ درست ہو گا۔
+    ایسی کوئی گارنٹی نہیں کہ signal ہمیشہ درست ہو گا۔ Stop-loss/take-profit صرف حالیہ volatility سے اندازہ ہیں، مالی مشورہ نہیں۔
   </div>
 </div>
 
 <script>
 const TV_SYMBOLS = {
-  GOLD: "OANDA:XAUUSD",
-  SILVER: "OANDA:XAGUSD",
-  BTC: "BINANCE:BTCUSDT",
-  SOL: "BINANCE:SOLUSDT",
+  GOLD: "OANDA:XAUUSD", SILVER: "OANDA:XAGUSD",
+  BTC: "BINANCE:BTCUSDT", SOL: "BINANCE:SOLUSDT",
 };
-const LABELS = {
-  GOLD: "XAU/USD", SILVER: "XAG/USD", BTC: "BTC/USDT", SOL: "SOL/USDT",
+const LABELS = { GOLD: "XAU/USD", SILVER: "XAG/USD", BTC: "BTC/USDT", SOL: "SOL/USDT" };
+const ORDER = ["GOLD", "SILVER", "BTC", "SOL"];
+
+const STR = {
+  ur: {
+    title: "🤖 Signal Robot", sub: "Gold • Silver • BTC • SOL — 5 Minute Chart — Live",
+    apiLabel: "Backend API URL:", selectLabel: "Instrument select karein",
+    checkBtn: "🔍 Check Signal", autoLabel: "Auto-refresh (30s)", alertLabel: "🔔 Alert on change",
+    support: "Support", resistance: "Resistance", sl: "Stop Loss", tp: "Take Profit",
+    conf: "Confidence", calcTitle: "Position Size Calculator", calcBtn: "🧮 Calculate",
+    langBtn: "EN",
+  },
+  en: {
+    title: "🤖 Signal Robot", sub: "Gold • Silver • BTC • SOL — 5 Minute Chart — Live",
+    apiLabel: "Backend API URL:", selectLabel: "Select instrument",
+    checkBtn: "🔍 Check Signal", autoLabel: "Auto-refresh (30s)", alertLabel: "🔔 Alert on change",
+    support: "Support", resistance: "Resistance", sl: "Stop Loss", tp: "Take Profit",
+    conf: "Confidence", calcTitle: "Position Size Calculator", calcBtn: "🧮 Calculate",
+    langBtn: "UR",
+  }
 };
+let lang = localStorage.getItem('lang') || 'ur';
+
+function applyLang() {
+  const s = STR[lang];
+  document.getElementById('titleText').textContent = s.title;
+  document.getElementById('subText').textContent = s.sub;
+  document.getElementById('apiLabel').textContent = s.apiLabel;
+  document.getElementById('selectLabel').textContent = s.selectLabel;
+  document.getElementById('checkBtn').textContent = s.checkBtn;
+  document.getElementById('autoLabel').textContent = s.autoLabel;
+  document.getElementById('alertLabel').textContent = s.alertLabel;
+  document.getElementById('lblSupport').textContent = s.support;
+  document.getElementById('lblResistance').textContent = s.resistance;
+  document.getElementById('lblSl').textContent = s.sl;
+  document.getElementById('lblTp').textContent = s.tp;
+  document.getElementById('confLabel').textContent = s.conf;
+  document.getElementById('calcTitle').textContent = s.calcTitle;
+  document.getElementById('calcBtn').textContent = s.calcBtn;
+  document.getElementById('langBtn').textContent = s.langBtn;
+}
+
+function toggleLang() {
+  lang = lang === 'ur' ? 'en' : 'ur';
+  localStorage.setItem('lang', lang);
+  applyLang();
+}
+
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  const isLight = document.body.classList.contains('light');
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  document.getElementById('themeBtn').textContent = isLight ? '☀️ Light' : '🌙 Dark';
+}
+
+function enableNotifications() {
+  if (!('Notification' in window)) { alert('Is browser mein notifications support nahi hain'); return; }
+  Notification.requestPermission().then(perm => {
+    document.getElementById('notifBtn').textContent = perm === 'granted' ? '🔔 Notify ON' : '🔔 Notify';
+  });
+}
 
 function getApiBase() {
   const saved = localStorage.getItem('signalRobotApiUrl');
@@ -111,6 +220,7 @@ let lastKey = null;
 let lastSignal = null;
 let refreshTimer = null;
 let history = [];
+const watchLastSignals = {};
 
 function playAlert() {
   try {
@@ -126,6 +236,12 @@ function playAlert() {
   if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
 }
 
+function notify(title, body) {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try { new Notification(title, { body }); } catch (e) {}
+  }
+}
+
 function renderHistory() {
   const el = document.getElementById('rHist');
   if (history.length === 0) { el.innerHTML = ''; return; }
@@ -136,6 +252,34 @@ function renderHistory() {
       <span class="hist-badge ${badgeClass(h.signal)}">${h.signal}</span>
     </div>
   `).join('');
+}
+
+function renderWatchGrid(data) {
+  const grid = document.getElementById('watchGrid');
+  grid.innerHTML = ORDER.map(key => {
+    const d = data[key];
+    if (!d) return '';
+    const priceText = d.price !== null && d.price !== undefined ? '$' + Number(d.price).toLocaleString(undefined, {maximumFractionDigits: 2}) : '--';
+    return `<div class="watch-item"><div>${key}</div><div class="wprice ${badgeClass(d.signal)}" style="display:inline-block;padding:2px 6px;border-radius:6px">${d.signal}</div><div class="wprice">${priceText}</div></div>`;
+  }).join('');
+}
+
+async function pollAll(base) {
+  try {
+    const r = await fetch(base + '/api/signals', { cache: 'no-store' });
+    const json = await r.json();
+    renderWatchGrid(json.data);
+    ORDER.forEach(key => {
+      const d = json.data[key];
+      if (!d || d.signal === 'ERROR') return;
+      const prev = watchLastSignals[key];
+      if (prev !== undefined && prev !== d.signal) {
+        notify(`${LABELS[key]} signal changed`, `${prev} → ${d.signal} @ ${d.price}`);
+        if (document.getElementById('soundAlert').checked) playAlert();
+      }
+      watchLastSignals[key] = d.signal;
+    });
+  } catch (e) {}
 }
 
 async function checkSignal(isAuto) {
@@ -176,8 +320,24 @@ async function checkSignal(isAuto) {
     document.getElementById('rBadge').className = 'badge ' + badgeClass(d.signal);
     document.getElementById('rMeta').textContent = `${rsiText} • ${d.status}`;
 
+    document.getElementById('rSupport').textContent = d.support ?? '—';
+    document.getElementById('rResistance').textContent = d.resistance ?? '—';
+    document.getElementById('rSl').textContent = d.sl ?? '—';
+    document.getElementById('rTp').textContent = d.tp ?? '—';
+    document.getElementById('confFill').style.width = (d.confidence || 0) + '%';
+
+    if (d.htf_signal) {
+      const agreeText = d.htf_agree
+        ? `<span class="htf-yes">✓ 15m confirms (${d.htf_signal})</span>`
+        : `<span class="htf-no">15m: ${d.htf_signal} (no confirm)</span>`;
+      document.getElementById('rHtf').innerHTML = agreeText;
+    } else {
+      document.getElementById('rHtf').innerHTML = '';
+    }
+
     if (lastSignal !== null && lastSignal !== d.signal && d.signal !== 'ERROR') {
       if (document.getElementById('soundAlert').checked) playAlert();
+      notify(`${LABELS[key]} signal changed`, `${lastSignal} → ${d.signal} @ ${priceText}`);
     }
     if (d.signal !== 'ERROR') {
       const now = new Date();
@@ -194,19 +354,49 @@ async function checkSignal(isAuto) {
     document.getElementById('rBadge').className = 'badge error';
     document.getElementById('rMeta').textContent = 'Backend se connect nahi ho saka';
   }
+
+  pollAll(base);
+}
+
+function calcPosition() {
+  const balance = parseFloat(document.getElementById('calcBalance').value) || 0;
+  const riskPct = parseFloat(document.getElementById('calcRisk').value) || 0;
+  const slEl = document.getElementById('rSl').textContent;
+  const priceEl = document.getElementById('rPrice').textContent.replace(/[^0-9.]/g, '');
+  const price = parseFloat(priceEl);
+  const sl = parseFloat(slEl);
+  const out = document.getElementById('calcResult');
+
+  if (!balance || !riskPct) { out.textContent = 'Balance aur risk % daalein'; return; }
+  if (!price || !sl || isNaN(sl)) { out.textContent = 'Pehle ek symbol ka signal check karein (BUY/SELL ke sath SL milega)'; return; }
+
+  const riskAmount = balance * (riskPct / 100);
+  const distance = Math.abs(price - sl);
+  const units = distance > 0 ? riskAmount / distance : 0;
+  const positionValue = units * price;
+
+  out.innerHTML = `Risk amount: $${riskAmount.toFixed(2)} • Suggested size: ${units.toFixed(4)} units (~$${positionValue.toFixed(2)} position value)`;
 }
 
 function setupAutoRefresh() {
   if (refreshTimer) clearInterval(refreshTimer);
   refreshTimer = setInterval(() => {
-    if (document.getElementById('autoRefresh').checked && lastKey) {
-      checkSignal(true);
+    if (document.getElementById('autoRefresh').checked) {
+      const base = getApiBase();
+      if (lastKey) checkSignal(true);
+      else if (base) pollAll(base);
     }
   }, 30000);
 }
 
-document.getElementById('symbolSelect').addEventListener('change', () => {});
+if (localStorage.getItem('theme') === 'light') {
+  document.body.classList.add('light');
+  document.getElementById('themeBtn').textContent = '☀️ Light';
+}
+applyLang();
 setupAutoRefresh();
+const initBase = getApiBase();
+if (initBase) pollAll(initBase);
 </script>
 </body>
 </html>
