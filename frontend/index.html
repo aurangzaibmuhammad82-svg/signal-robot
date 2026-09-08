@@ -27,6 +27,14 @@ button{width:100%;border:0;border-radius:12px;padding:14px;background:#1e2b47;co
 .note{font-size:12px;line-height:1.5;color:#9eabc7;margin-top:12px;background:#121a2d;border:1px solid #263452;border-radius:16px;padding:14px}
 .cfg{font-size:11px;color:#7c8bab;margin-bottom:10px}
 .cfg input{background:#0d1425;border:1px solid #263452;color:#eef2ff;border-radius:8px;padding:6px 8px;width:100%;margin-top:4px}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #556080;border-top-color:#63e6a4;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:6px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.autorow{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#9eabc7;margin-top:10px}
+.autorow label{display:flex;align-items:center;gap:6px;margin:0}
+.hist{margin-top:14px;border-top:1px solid #263452;padding-top:10px}
+.hist-row{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;color:#9eabc7;border-bottom:1px solid #1a2337}
+.hist-row:last-child{border-bottom:none}
+.hist-badge{font-weight:800;padding:2px 8px;border-radius:6px;font-size:11px}
 </style>
 </head>
 <body>
@@ -48,6 +56,10 @@ button{width:100%;border:0;border-radius:12px;padding:14px;background:#1e2b47;co
       <option value="SOL">SOL/USDT</option>
     </select>
     <button onclick="checkSignal()">🔍 Check Signal</button>
+    <div class="autorow">
+      <label><input type="checkbox" id="autoRefresh" checked /> Auto-refresh (30s)</label>
+      <label><input type="checkbox" id="soundAlert" checked /> 🔔 Alert on change</label>
+    </div>
   </div>
 
   <div class="card" id="resultCard" style="display:none">
@@ -56,6 +68,7 @@ button{width:100%;border:0;border-radius:12px;padding:14px;background:#1e2b47;co
     <span class="badge wait" id="rBadge">...</span>
     <div class="meta" id="rMeta"></div>
     <div class="chart" id="rChart"></div>
+    <div class="hist" id="rHist"></div>
   </div>
 
   <div class="note">
@@ -95,23 +108,51 @@ function badgeClass(signal) {
 }
 
 let lastKey = null;
+let lastSignal = null;
+let refreshTimer = null;
+let history = [];
 
-async function checkSignal() {
+function playAlert() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.25);
+  } catch (e) {}
+  if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+}
+
+function renderHistory() {
+  const el = document.getElementById('rHist');
+  if (history.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = history.slice(0, 10).map(h => `
+    <div class="hist-row">
+      <span>${h.time}</span>
+      <span>${h.price}</span>
+      <span class="hist-badge ${badgeClass(h.signal)}">${h.signal}</span>
+    </div>
+  `).join('');
+}
+
+async function checkSignal(isAuto) {
   const base = getApiBase();
   const resultCard = document.getElementById('resultCard');
   if (!base) {
-    alert('Pehle upar Backend API URL daalein');
+    if (!isAuto) alert('Pehle upar Backend API URL daalein');
     return;
   }
   const key = document.getElementById('symbolSelect').value;
   resultCard.style.display = 'block';
-  document.getElementById('rSymbol').textContent = LABELS[key];
-  document.getElementById('rPrice').textContent = 'Loading...';
-  document.getElementById('rBadge').textContent = '...';
-  document.getElementById('rBadge').className = 'badge wait';
-  document.getElementById('rMeta').textContent = '';
 
   if (lastKey !== key) {
+    document.getElementById('rPrice').innerHTML = '<span class="spin"></span>Loading...';
+    document.getElementById('rBadge').textContent = '...';
+    document.getElementById('rBadge').className = 'badge wait';
+    document.getElementById('rMeta').textContent = '';
     const tvSymbol = TV_SYMBOLS[key];
     document.getElementById('rChart').innerHTML = `
       <iframe
@@ -119,7 +160,11 @@ async function checkSignal() {
         allowtransparency="true" scrolling="no" allowfullscreen>
       </iframe>`;
     lastKey = key;
+    lastSignal = null;
+    history = [];
+    renderHistory();
   }
+  document.getElementById('rSymbol').textContent = LABELS[key];
 
   try {
     const r = await fetch(base + '/api/signals/' + key, { cache: 'no-store' });
@@ -130,6 +175,19 @@ async function checkSignal() {
     document.getElementById('rBadge').textContent = d.signal;
     document.getElementById('rBadge').className = 'badge ' + badgeClass(d.signal);
     document.getElementById('rMeta').textContent = `${rsiText} • ${d.status}`;
+
+    if (lastSignal !== null && lastSignal !== d.signal && d.signal !== 'ERROR') {
+      if (document.getElementById('soundAlert').checked) playAlert();
+    }
+    if (d.signal !== 'ERROR') {
+      const now = new Date();
+      const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+      if (history.length === 0 || history[0].signal !== d.signal) {
+        history.unshift({ time: timeStr, price: priceText, signal: d.signal });
+        renderHistory();
+      }
+      lastSignal = d.signal;
+    }
   } catch (e) {
     document.getElementById('rPrice').textContent = '--';
     document.getElementById('rBadge').textContent = 'ERROR';
@@ -137,6 +195,18 @@ async function checkSignal() {
     document.getElementById('rMeta').textContent = 'Backend se connect nahi ho saka';
   }
 }
+
+function setupAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => {
+    if (document.getElementById('autoRefresh').checked && lastKey) {
+      checkSignal(true);
+    }
+  }, 30000);
+}
+
+document.getElementById('symbolSelect').addEventListener('change', () => {});
+setupAutoRefresh();
 </script>
 </body>
 </html>
